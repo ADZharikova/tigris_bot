@@ -1,7 +1,7 @@
 import telebot
 from telebot import types
 import sqlite3
-from datetime import date
+from datetime import timedelta, date, datetime
 import pandas as pd
 
 
@@ -44,6 +44,10 @@ def start(message):
                 type_of_sport varchar(50),
                 abonement_count_workout varchar(50),
                 price integer)""")
+    
+    cur.execute("""CREATE TABLE IF NOT EXISTS club_contacts
+                (id int auto_increment primary key, 
+                contacts varchar(1000))""")
 
     conn.commit()
     cur.close()
@@ -80,7 +84,7 @@ def register(message):
             conn.commit()
             cur.close()
             conn.close()
-            bot.send_message(message.chat.id, 'Регистрация прошла успешно\n\nДоступные команды:\n/price - Узнать цены\n/schedule - Узнать расписание\n/signup - Записаться на занятие\n/myinfo - Информация о моих тренировках\n/additional_services - Дополнительные услуги\n/socialnetwork - Добавить свою соц сеть\n/contacts - Контакты')
+            bot.send_message(message.chat.id, 'Регистрация прошла успешно\n\nДоступные команды:\n/myinfo - Информация о моих тренировках\n/price - Узнать цены\n/schedule - Узнать расписание\n/signup - Записаться на занятие\n/additionalservices - Дополнительные услуги\n/socialnetwork - Добавить свою соц сеть\n/contacts - Контакты')
 
 
 
@@ -113,7 +117,7 @@ def users_list(message):
         cur = conn.cursor()
         cur.execute('SELECT * FROM users')
         users = cur.fetchall()
-        info = 'ФИО взрослого;ФИО ребёнка;админские права;номер;телега;тип абонемента;type_of_sport;abonement_count_workout;current_count_workout;day_start_abonement;day_end_abonement;is_have_locker;locker_days_left;frozen_number;vk_ru;inst_ru\n'
+        info = 'ФИО взрослого;ФИО ребёнка;Админские права;Номер телефона;Ник телеграм;Тип абонемента;Вид Спорта;Количество дней в абонементе;Количество тренировок, которые отходил;Дата начала абонемента;Дата окончания абонемента;Есть ли шкафчик;Дата окончания аренды шкафчика;Количество заморозок;vk_ru;inst_ru\n'
         for el in users:
             info += f'{el[1]};{el[2]};{el[3]};{el[4]};{el[5]};{el[6]};{el[7]};{el[8]};{el[9]};{el[10]};{el[11]};{el[12]};{el[13]};{el[14]};{el[15]};{el[16]}\n'
         cur.close()
@@ -193,12 +197,12 @@ def change_schedule(message):
     if (info == "true"):
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
-        cur.execute('DELETE FROM price')
+        cur.execute('DELETE FROM schedule')
         cur.execute("INSERT INTO schedule (adult_schedule, kid_schedule) VALUES ('Взрослые', 'Дети')")
         conn.commit()
         cur.close()
         conn.close()
-        bot.send_message(message.chat.id, 'Данные добавлены')
+        bot.send_message(message.chat.id, 'Расписание добавлено')
     else:
         bot.send_message(message.chat_id, 'Вы не админ')
 
@@ -271,7 +275,7 @@ def add_price_first_time(message):
         conn.commit()
         cur.close()
         conn.close()
-        bot.send_message(message.chat.id, 'Дане')
+        bot.send_message(message.chat.id, 'Цены добавлены')
     else:
         bot.send_message(message.chat_id, 'Вы не админ')
 
@@ -417,7 +421,7 @@ def signup_abonement_type(message):
         info += f'{el[0]}\n'
     cur.close()
     conn.close()
-    bot.send_message(message.chat.id, f'Укажите вид спорта\n{info}\n\n<em>Скопируйте и вставьте одно из значений\nЕсли написано "None", начните сначала /signup</em>', parse_mode='html')
+    bot.send_message(message.chat.id, f'Укажите вид спорта\n{info}\n\n<em>Скопируйте и вставьте одно из значений\nЕсли информации нет, начните сначала /signup</em>', parse_mode='html')
     bot.register_next_step_handler(message, signup_type_of_sport)
 
 def signup_type_of_sport(message):
@@ -432,7 +436,7 @@ def signup_type_of_sport(message):
         info += f'{el[0]}\n'
     cur.close()
     conn.close()
-    bot.send_message(message.chat.id, f'Укажите количество занятий\n{info}\n\n<em>Скопируйте и вставьте одно из значений\nЕсли написано "None", начните сначала /signup</em>', parse_mode='html')
+    bot.send_message(message.chat.id, f'Укажите количество занятий\n{info}\n\n<em>Скопируйте и вставьте одно из значений\nЕсли информации нет, начните сначала /signup</em>', parse_mode='html')
     bot.register_next_step_handler(message, signup_abonement_count_workout)
 
 def signup_abonement_count_workout(message):
@@ -447,20 +451,20 @@ def signup_abonement_count_workout(message):
         info += f'{el[0]}'
     cur.close()
     conn.close()
-    bot.send_message(message.chat.id, f'Для оплаты необходимо перевести {info} рублей на сбербанк по номеру 89990009900\nЧтобы оплата прошла, необходимо отправиь чек СРАЗУ после этого сообщения, иначе он не обработается\n\n<em>Если сумма не отобразилась, , начните сначала /signup</em>', parse_mode='html')
+    bot.send_message(message.chat.id, f'Для оплаты необходимо перевести {info} рублей на сбербанк по номеру 89990009900\nЧтобы оплата прошла, необходимо отправиь чек СРАЗУ после этого сообщения, иначе он не обработается\n\n<em>Если сумма не отобразилась, начните сначала /signup</em>', parse_mode='html')
     bot.register_next_step_handler(message, signup_check)
 
 def signup_check(message):
     if (message.content_type == 'photo'):
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
-        cur.execute("UPDATE users SET abonement_type = '%s', type_of_sport = '%s', abonement_count_workout = '%s', day_start_abonement = CURRENT_DATE, day_end_abonement = DATE(CURRENT_DATE, '+1 month'), current_count_workout = '0' WHERE telegram_nickname = '%s'" % (_abonement_type, _type_of_sport, _abonement_count_workout, message.from_user.username))
+        cur.execute("UPDATE users SET abonement_type = '%s', type_of_sport = '%s', abonement_count_workout = '%s', day_start_abonement = CURRENT_DATE, day_end_abonement = DATE(CURRENT_DATE, '+1 month'), current_count_workout = '0', frozen_number = '0'  WHERE telegram_nickname = '%s'" % (_abonement_type, _type_of_sport, _abonement_count_workout, message.from_user.username))
         conn.commit()
         cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (message.from_user.username))
         users = cur.fetchall()
         info = ''
         for el in users:
-            info += f'ФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
+            info += f'ЧЕК\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
         cur.close()
         conn.close()
         bot.send_message(-4143866178, info)
@@ -473,13 +477,13 @@ def cool_signup_check(message):
     if (message.content_type == 'photo'):
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
-        cur.execute("UPDATE users SET day_start_abonement = CURRENT_DATE, day_end_abonement = DATE(CURRENT_DATE, '+1 month'), current_count_workout = '0' WHERE telegram_nickname = '%s'" % (message.from_user.username))
+        cur.execute("UPDATE users SET day_start_abonement = CURRENT_DATE, day_end_abonement = DATE(CURRENT_DATE, '+1 month'), current_count_workout = '0', frozen_number = '0' WHERE telegram_nickname = '%s'" % (message.from_user.username))
         conn.commit()
         cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (message.from_user.username))
         users = cur.fetchall()
         info = ''
         for el in users:
-            info += f'ФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
+            info += f'ЧЕК\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
         cur.close()
         conn.close()
         bot.send_message(-4143866178, info)
@@ -535,7 +539,7 @@ def add_inst(message):
 
 
 
-@bot.message_handler(commands=['additional_services'])
+@bot.message_handler(commands=['additionalservices'])
 def find_out_price(message):
     markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton('Аренда шкафчика', callback_data = 'look_at_locker')
@@ -548,8 +552,35 @@ def find_out_price(message):
 
 
 @bot.message_handler(commands=['contacts'])
+def find_out_contacts(message):
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM club_contacts')
+    club_contacts = cur.fetchall()
+    info = ''
+    for el in club_contacts:
+        info += f'{el[1]}'
+    cur.close()
+    conn.close()
+    bot.send_message(message.chat.id, f'{info}')
+
+
+
+@bot.message_handler(commands=['change_contacts'])
 def add_contacts(message):
-    bot.send_message(message.chat.id, """<em>Любая информация по тренировкам клуба TIGRIS:</em> +7(985)913-45-16 (@psy_sensei) - Дмитрий\n\n<em>Администратор клуба:</em> +7(901)744-33-28 - ИО\n\n<em>Почта:</em> mma_tigris@bk.ru""", parse_mode='html')
+    bot.send_message(message.chat.id, 'Введите новый текст')
+    bot.register_next_step_handler(message, change_contacts)
+
+def change_contacts(message):
+    _contacts = message.text
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute("DELETE FROM club_contacts")
+    cur.execute("INSERT INTO club_contacts (contacts) VALUES ('%s')"% (_contacts))
+    conn.commit()
+    cur.close()
+    conn.close()
+    bot.send_message(message.chat.id, 'Контакты изменены')
 
 
 
@@ -565,9 +596,47 @@ def admin_help(message):
     cur.close()
     conn.close()
     if (info == "true"):
-        bot.send_message(message.chat.id, "Команды, доступные админам:\n/users_list - Вывести список пользователей\n/change_schedule - Поменять расписание\n/add_price - Добавить новый вид абонемента\n/change_price - Поменять цену абонемента\n/chat_id - узнать id текущего чата")
+        bot.send_message(message.chat.id, "Команды, доступные админам:\n\nРАБОТА С ПОЛЬЗОВАТЕЛЯМИ:\n/users_list - Вывести список пользователей\n/add_admin_user - Сделать пользователя админом\n/delete_user - Удалить неактивного пользователя\n/chat_id - Узнать id текущего чата (доступно всем)\n\nРАБОТА С РАСПИСАНИЕМ:\n/add_schedule_first_time - Самый первый раз добавить расписание (сделать один раз при запуске)\n/change_schedule - Поменять расписание\n\nРАБОТА С ЦЕНАМИ:\n/add_price_first_time - Самый первый раз добавить цены (сделать один раз при запуске)\n/add_new_price - Добавить новый вид абонемента\n/change_price - Поменять цену существующего абонемента\n\nИЗМЕНЕНИЕ ДАТ:\n/change_day_start_abonement - поменять дату начала абонемента определённого пользователя\n/locker_days_left - поменять дату начала пользования шкафчиком у определённого пользователя\n\nДОП ВОЗМОЖНОСТИ:\n/change_contacts - Поменять информацию в графе 'Контакты'\n/all_notification - отправить всем уведомление")
     else:
         bot.send_message(message.chat.id, "Вы не админ")
+
+
+
+@bot.message_handler(commands=['delete_user'])
+def delete_user(message):
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT is_superuser FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (info == "true"):
+        bot.send_message(message.chat.id, 'Введите ник пользователя, которого хотите удалить')
+        bot.register_next_step_handler(message, delete_user_check)
+    else:
+        bot.send_message(message.chat.id, "Вы не админ")
+
+def delete_user_check(message):
+    global _telegram_nick
+    _telegram_nick =  message.text
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (_telegram_nick))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[1]}\n'
+    cur.close()
+    conn.close()
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'delete_user')
+    btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
+    markup.row(btn1)
+    markup.row(btn2)
+    bot.send_message(message.chat.id, f'Надо удалить {info}?\n\n<em>Если нет, то /delete_user</em>', parse_mode='html', reply_markup=markup)
 
 
 
@@ -590,8 +659,10 @@ def add_new_admin(message):
     conn.close()
     markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton('Да!', callback_data = 'add_new_admin')
+    btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
     markup.row(btn1)
-    bot.send_message(message.chat.id, f'Надо сделать админом {info}\n\nЕсли нет, то /add_admin_user', reply_markup=markup)
+    markup.row(btn2)
+    bot.send_message(message.chat.id, f'Надо сделать админом {info}\n\n<em>Если нет, то /add_admin_user</em>', parse_mode='html', reply_markup=markup)
 
 
 
@@ -626,6 +697,25 @@ def my_info(message):
         markup.row(btn2)
         markup.row(btn3)
         bot.send_message(message.chat.id, info, reply_markup=markup)
+
+def freeze_check(message):
+    if (message.content_type == 'photo'):
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET frozen_number = '2' WHERE telegram_nickname = '%s'" % (message.from_user.username))
+        conn.commit()
+        cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (message.from_user.username))
+        users = cur.fetchall()
+        info = ''
+        for el in users:
+            info += f'ВТОРАЯ ЗАМОРОЗКА\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
+        cur.close()
+        conn.close()
+        bot.send_message(message.chat.id, 'Абонемент продлён на 3 дня')
+        bot.send_message(-4143866178, info)
+        bot.forward_message(-4143866178, message.from_user.id, message.message_id)
+    else:
+        bot.reply_to(message, 'Это не чек. Попробуте продлить ещё раз')
 
 
 
@@ -744,7 +834,7 @@ def callback_message(callback):
                     FROM price
                     WHERE abonement_type in (SELECT abonement_type FROM users WHERE telegram_nickname = '%s')
                     and type_of_sport in (SELECT type_of_sport FROM users WHERE telegram_nickname = '%s')
-                    and abonement_count_workout in (SELECT abonement_count_workout FROM users WHERE telegram_nickname = '%s')"""%(callback.from_user.username, callback.from_user.username, callback.from_user.username))
+                    and abonement_count_workout in (SELECT abonement_count_workout FROM users WHERE telegram_nickname = '%s')"""% (callback.from_user.username, callback.from_user.username, callback.from_user.username))
         price = cur.fetchall()
         info = ''
         for el in price:
@@ -755,7 +845,44 @@ def callback_message(callback):
         bot.register_next_step_handler(callback.message, cool_signup_check)
 
     if callback.data == 'freeze_abonement':
-        bot.send_message(callback.message.chat.id, 'Тынц')
+        markup = types.InlineKeyboardMarkup()
+        btn1 = types.InlineKeyboardButton('Заморозить', callback_data = 'freeze')
+        markup.add(btn1)
+        bot.send_message(callback.message.chat.id, 'Если вы не успели отходить 1 тренировку за месяц, то даётся 3 дополнительных дня, чтобы её отходить\n\n<em>Действует только для групп</em>', parse_mode='html', reply_markup=markup)
+
+    if callback.data == 'freeze':
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute("SELECT abonement_type, frozen_number, day_end_abonement FROM users WHERE telegram_nickname = '%s'"% (callback.from_user.username))
+        user = cur.fetchall()
+        abonement_type = ''
+        frozen_number = ''
+        day_end_abonement = ''
+        for el in user:
+            abonement_type += f'{el[0]}'
+            frozen_number += f'{el[1]}'
+            day_end_abonement += f'{el[2]}'
+        cur.close()
+        conn.close()
+        dt = datetime.strptime(day_end_abonement, '%Y-%m-%d')
+        date_end = dt + timedelta(days=3)
+        if (abonement_type != 'Групповой'):
+            bot.send_message(callback.message.chat.id, 'Эта функция доступна только по групповому абонементу')
+        else:
+            if (frozen_number == '0' and date_end.strftime('%Y-%m-%d') >= datetime.now().strftime('%Y-%m-%d')):
+                    conn = sqlite3.connect('tigris_clube.sql')
+                    cur = conn.cursor()
+                    cur.execute("UPDATE users SET frozen_number = '1' WHERE telegram_nickname = '%s'" % (callback.from_user.username))
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                    bot.send_message(callback.message.chat.id, 'Абонемент продлён на 3 дня')
+            elif (frozen_number == '1' and date_end.strftime('%Y-%m-%d') >= datetime.now().strftime('%Y-%m-%d')):
+                bot.send_message(callback.message.chat.id, 'Приложите справку')
+                bot.register_next_step_handler(callback.message, freeze_check)
+            else:
+                bot.send_message(callback.message.chat.id, 'Больше заморозка не доступна')
+
 
     if callback.data == 'check_in':
         conn = sqlite3.connect('tigris_clube.sql')
@@ -780,24 +907,16 @@ def callback_message(callback):
             bot.send_message(-4143866178, f'Сегодня будет тренировка у\n\n{info}')
             bot.send_message(callback.message.chat.id, 'Вы отметились')
 
+    if callback.data == 'not_find_nick':
+        bot.send_message(callback.message.chat.id, 'Начните сначала')
+
+    if callback.data == 'delete_user':
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute('DELETE FROM users WHERE telegram_nickname = "%s"' % (_telegram_nick))
+        conn.commit()
+        cur.close()
+        conn.close()
+        bot.send_message(callback.message.chat.id, 'Пользователь удалён')
+
 bot.infinity_polling()
-
-
-
-
-
-# @bot.message_handler(content_types=['photo'])
-# def get_photo(message):
-#     bot.send_message(-4143866178, f'{_kohay_name}')
-#     bot.forward_message(-4143866178, message.from_user.id, message.message_id)
-#     bot.reply_to(message, 'Чек отправлен преподавателю. Спасибо!')
-
-# @bot.message_handler(commands=['dogovor'])
-# def main(message):
-#     bot.send_message(message.chat.id, 'Загрузите договор и дождитесь сообщения о загрузке')
-
-# @bot.message_handler(content_types=['document'])
-# def get_document(message):
-#     bot.reply_to(message, 'Документ получен. Спасибо!')
-#     bot.send_message(-4143866178, f'{_kohay_name}')
-#     bot.forward_message(-4143866178, message.from_user.id, message.message_id)
