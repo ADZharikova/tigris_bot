@@ -76,7 +76,7 @@ def register(message):
         else:
             conn = sqlite3.connect('tigris_clube.sql')
             cur = conn.cursor()
-            cur.execute("INSERT INTO users (fio_adult, fio_kid, is_superuser, phone_number, telegram_nickname) VALUES ('%s', '%s', '%s', '%s', '%s')" % (_adalt_name, _kid_name, "false", _phone_number, message.from_user.username))
+            cur.execute("INSERT INTO users (fio_adult, fio_kid, is_superuser, phone_number, telegram_nickname, current_count_workout) VALUES ('%s', '%s', '%s', '%s', '%s', 0)" % (_adalt_name, _kid_name, "false", _phone_number, message.from_user.username))
             conn.commit()
             cur.close()
             conn.close()
@@ -101,17 +101,29 @@ def adult_with_kid(message):
 def users_list(message):
     conn = sqlite3.connect('tigris_clube.sql')
     cur = conn.cursor()
-    cur.execute('SELECT * FROM users')
+    cur.execute('SELECT is_superuser FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
     users = cur.fetchall()
-    info = 'ФИО взрослого;ФИО ребёнка;админские права;номер;телега;тип абонемента;type_of_sport;abonement_count_workout;current_count_workout;day_start_abonement;day_end_abonement;is_have_locker;locker_days_left;frozen_number;vk_ru;inst_ru\n'
+    info = ''
     for el in users:
-        info += f'{el[1]};{el[2]};{el[3]};{el[4]};{el[5]};{el[6]};{el[7]};{el[8]};{el[9]};{el[10]};{el[11]};{el[12]};{el[13]};{el[14]};{el[15]};{el[16]}\n'
+        info += f'{el[0]}'
     cur.close()
     conn.close()
-    user = pd.DataFrame({info})
-    user.to_csv('users.csv', index=False, encoding='utf-8')
-    bot.send_document(message.chat.id, open('users.csv', 'rb'))
-    bot.send_message(message.chat.id, f'Если в файле криво, то надо поменять кодировку в exel на UTF-8\n\n{info}')
+    if (info == "true"):
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM users')
+        users = cur.fetchall()
+        info = 'ФИО взрослого;ФИО ребёнка;админские права;номер;телега;тип абонемента;type_of_sport;abonement_count_workout;current_count_workout;day_start_abonement;day_end_abonement;is_have_locker;locker_days_left;frozen_number;vk_ru;inst_ru\n'
+        for el in users:
+            info += f'{el[1]};{el[2]};{el[3]};{el[4]};{el[5]};{el[6]};{el[7]};{el[8]};{el[9]};{el[10]};{el[11]};{el[12]};{el[13]};{el[14]};{el[15]};{el[16]}\n'
+        cur.close()
+        conn.close()
+        user = pd.DataFrame({info})
+        user.to_csv('users.csv', index=False, encoding='utf-8')
+        bot.send_document(message.chat.id, open('users.csv', 'rb'))
+        bot.send_message(message.chat.id, f'Если в файле криво, то надо поменять кодировку в exel на UTF-8\n\n{info}')
+    else:
+        bot.send_message(message.chat_id, 'Вы не админ')
 
 
 
@@ -127,11 +139,23 @@ def find_out_schedule(message):
 
 @bot.message_handler(commands=['change_schedule'])
 def change_schedule(message):
-    markup = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton('Взрослые', callback_data = 'change_adult_schedule')
-    btn2 = types.InlineKeyboardButton('Дети', callback_data = 'change_kid_schedule')
-    markup.row(btn1, btn2)
-    bot.send_message(message.chat.id, 'Выберете чьё расписание хотите поменять и введите его', reply_markup=markup)
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT is_superuser FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (info == "true"):
+        markup = types.InlineKeyboardMarkup()
+        btn1 = types.InlineKeyboardButton('Взрослые', callback_data = 'change_adult_schedule')
+        btn2 = types.InlineKeyboardButton('Дети', callback_data = 'change_kid_schedule')
+        markup.row(btn1, btn2)
+        bot.send_message(message.chat.id, 'Выберете чьё расписание хотите поменять и введите его', reply_markup=markup)
+    else:
+        bot.send_message(message.chat_id, 'Вы не админ')
 
 def change_adult_schedule(message):
     _adult_schedule_new = message.text
@@ -157,6 +181,16 @@ def change_kid_schedule(message):
 
 @bot.message_handler(commands=['add_schedule_first_time'])
 def change_schedule(message):
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT is_superuser FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (info == "true"):
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
         cur.execute('DELETE FROM price')
@@ -165,6 +199,8 @@ def change_schedule(message):
         cur.close()
         conn.close()
         bot.send_message(message.chat.id, 'Данные добавлены')
+    else:
+        bot.send_message(message.chat_id, 'Вы не админ')
 
 
 
@@ -184,8 +220,18 @@ def find_out_price(message):
 def add_price_first_time(message):
     conn = sqlite3.connect('tigris_clube.sql')
     cur = conn.cursor()
-    cur.execute('DELETE FROM price')
-    cur.execute("""INSERT INTO price (abonement_type, type_of_sport, abonement_count_workout, price)
+    cur.execute('SELECT is_superuser FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (info == "true"):
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute('DELETE FROM price')
+        cur.execute("""INSERT INTO price (abonement_type, type_of_sport, abonement_count_workout, price)
                 VALUES ('Групповой', 'ММА группа №1', '1', '800'),
                 ('Групповой', 'ММА группа №1', '8', '4500'),
                 ('Групповой', 'ММА группа №1', '12', '5500'),
@@ -222,17 +268,31 @@ def add_price_first_time(message):
                 ('Сплит', '60 мин', '4', '16300'),
                 ('Сплит', '60 мин', '8', '32500'),
                 ('Сплит', '60 мин', '12', '47000')""")
-    conn.commit()
-    cur.close()
-    conn.close()
-    bot.send_message(message.chat.id, 'Дане')
+        conn.commit()
+        cur.close()
+        conn.close()
+        bot.send_message(message.chat.id, 'Дане')
+    else:
+        bot.send_message(message.chat_id, 'Вы не админ')
 
 
 
 @bot.message_handler(commands=['add_new_price'])
 def add_new_price(message):
-    bot.send_message(message.chat.id, 'Напишите тип абонемента:\nГрупповой\nИндивидуальный\nСплит')
-    bot.register_next_step_handler(message, add_abonement_type)
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT is_superuser FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (info == "true"):
+        bot.send_message(message.chat.id, 'Напишите тип абонемента:\nГрупповой\nИндивидуальный\nСплит')
+        bot.register_next_step_handler(message, add_abonement_type)
+    else: 
+        bot.send_message(message.chat_id, 'Вы не админ')
 
 def add_abonement_type(message):
     global _abonement_type
@@ -267,8 +327,20 @@ def add_price_new(message):
 
 @bot.message_handler(commands=['change_price'])
 def add_new_price(message):
-    bot.send_message(message.chat.id, 'Укажите тип абонемента:\nГрупповой\nИндивидуальный\nСплит')
-    bot.register_next_step_handler(message, change_price_abonement_type)
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT is_superuser FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (info == "true"):
+        bot.send_message(message.chat.id, 'Укажите тип абонемента:\nГрупповой\nИндивидуальный\nСплит')
+        bot.register_next_step_handler(message, change_price_abonement_type)
+    else:
+        bot.send_message(message.chat_id, 'Вы не админ')
 
 def change_price_abonement_type(message):
     global _abonement_type
@@ -375,25 +447,46 @@ def signup_abonement_count_workout(message):
         info += f'{el[0]}'
     cur.close()
     conn.close()
-    bot.send_message(message.chat.id, f'Для оплаты необходимо перевести {info} рублей на сбербанк по номеру 89990009900\nЧтобы оплата прошла, необходимо отправиь чек СРАЗУ после этого сообщения, иначе он не обработается', parse_mode='html')
+    bot.send_message(message.chat.id, f'Для оплаты необходимо перевести {info} рублей на сбербанк по номеру 89990009900\nЧтобы оплата прошла, необходимо отправиь чек СРАЗУ после этого сообщения, иначе он не обработается\n\n<em>Если сумма не отобразилась, , начните сначала /signup</em>', parse_mode='html')
     bot.register_next_step_handler(message, signup_check)
 
 def signup_check(message):
-    conn = sqlite3.connect('tigris_clube.sql')
-    cur = conn.cursor()
-    cur.execute("UPDATE users SET abonement_type = '%s', type_of_sport = '%s', abonement_count_workout = '%s', day_start_abonement = CURRENT_DATE, day_end_abonement = DATE(CURRENT_DATE, '+1 month') WHERE telegram_nickname = '%s'" % (_abonement_type, _type_of_sport, _abonement_count_workout, message.from_user.username))
-    conn.commit()
-    cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (message.from_user.username))
-    users = cur.fetchall()
-    info = 'ФИО взрослого, ФИО ребёнка, Номер, Телега, Тип абонемента, Группа, Количество занятий\n'
-    for el in users:
-        info += f'{el[1]}, {el[2]}, {el[4]}, {el[5]}, {el[6]}, {el[7]}, {el[8]}\n'
-    cur.close()
-    conn.close()
-    bot.send_message(-4143866178, info)
-    bot.forward_message(-4143866178, message.from_user.id, message.message_id)
-    bot.reply_to(message, 'Чек получен и отправлен преподавателю. Спасибо!')
+    if (message.content_type == 'photo'):
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET abonement_type = '%s', type_of_sport = '%s', abonement_count_workout = '%s', day_start_abonement = CURRENT_DATE, day_end_abonement = DATE(CURRENT_DATE, '+1 month'), current_count_workout = '0' WHERE telegram_nickname = '%s'" % (_abonement_type, _type_of_sport, _abonement_count_workout, message.from_user.username))
+        conn.commit()
+        cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (message.from_user.username))
+        users = cur.fetchall()
+        info = ''
+        for el in users:
+            info += f'ФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
+        cur.close()
+        conn.close()
+        bot.send_message(-4143866178, info)
+        bot.forward_message(-4143866178, message.from_user.id, message.message_id)
+        bot.reply_to(message, 'Чек получен и отправлен преподавателю. Спасибо!')
+    else:
+        bot.reply_to(message, 'Начните сначала /signup')
 
+def cool_signup_check(message):
+    if (message.content_type == 'photo'):
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET day_start_abonement = CURRENT_DATE, day_end_abonement = DATE(CURRENT_DATE, '+1 month'), current_count_workout = '0' WHERE telegram_nickname = '%s'" % (message.from_user.username))
+        conn.commit()
+        cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (message.from_user.username))
+        users = cur.fetchall()
+        info = ''
+        for el in users:
+            info += f'ФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
+        cur.close()
+        conn.close()
+        bot.send_message(-4143866178, info)
+        bot.forward_message(-4143866178, message.from_user.id, message.message_id)
+        bot.reply_to(message, 'Чек получен и отправлен преподавателю. Спасибо!')
+    else:
+        bot.reply_to(message, 'Это не чек. Попробуте продлить ещё раз')
 
 
 @bot.message_handler(commands=['chat_id'])
@@ -455,14 +548,84 @@ def find_out_price(message):
 
 
 @bot.message_handler(commands=['contacts'])
-def find_out_chat_id(message):
+def add_contacts(message):
     bot.send_message(message.chat.id, """<em>Любая информация по тренировкам клуба TIGRIS:</em> +7(985)913-45-16 (@psy_sensei) - Дмитрий\n\n<em>Администратор клуба:</em> +7(901)744-33-28 - ИО\n\n<em>Почта:</em> mma_tigris@bk.ru""", parse_mode='html')
 
 
 
 @bot.message_handler(commands=['admin_help'])
-def find_out_chat_id(message):
-    bot.send_message(message.chat.id, """Команды, доступные админам:\n/users_list - Вывести список пользователей\n/change_schedule - Поменять расписание\n/add_price - Добавить новый вид абонемента\n/change_price - Поменять цену абонемента\n/chat_id - узнать id текущего чата""")
+def admin_help(message):
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT is_superuser FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (info == "true"):
+        bot.send_message(message.chat.id, "Команды, доступные админам:\n/users_list - Вывести список пользователей\n/change_schedule - Поменять расписание\n/add_price - Добавить новый вид абонемента\n/change_price - Поменять цену абонемента\n/chat_id - узнать id текущего чата")
+    else:
+        bot.send_message(message.chat.id, "Вы не админ")
+
+
+
+@bot.message_handler(commands=['add_admin_user'])
+def add_admin_user(message):
+    bot.send_message(message.chat.id, 'Введите ник нового админа без @')
+    bot.register_next_step_handler(message, add_new_admin)
+
+def add_new_admin(message):
+    global _telegram_nick
+    _telegram_nick =  message.text
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (_telegram_nick))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[1]}\n'
+    cur.close()
+    conn.close()
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'add_new_admin')
+    markup.row(btn1)
+    bot.send_message(message.chat.id, f'Надо сделать админом {info}\n\nЕсли нет, то /add_admin_user', reply_markup=markup)
+
+
+
+@bot.message_handler(commands=['myinfo'])
+def my_info(message):
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute("SELECT abonement_type FROM users WHERE telegram_nickname = '%s'"% (message.from_user.username))
+    users = cur.fetchall()
+    check_chekin = ''
+    for el in users:
+        check_chekin += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (check_chekin == 'None'):
+        bot.send_message(message.chat.id, 'Вы ни на что не записаны. Для записи нажмите /signup')
+    else:
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (message.from_user.username))
+        users = cur.fetchall()
+        info = ''
+        for el in users:
+            info += f'Вид абонемента: {el[6]}\nДата оформления абонемента (ГГГГ-ММ-ДД): {el[10]}\nДата окончиния абонемента (ГГГГ-ММ-ДД): {el[11]}\nИспользовано {el[9]} тренировок из {el[8]}\nШкафчик действует до {el[13]}'
+        cur.close()
+        conn.close()
+        markup = types.InlineKeyboardMarkup()
+        btn1 = types.InlineKeyboardButton('Продлить абонемент', callback_data = 'renew_abonement')
+        btn2 = types.InlineKeyboardButton('Оформить заморозку', callback_data = 'freeze_abonement')
+        btn3 = types.InlineKeyboardButton('Отметиться на сегодняшней тренировке', callback_data = 'check_in')
+        markup.row(btn1)
+        markup.row(btn2)
+        markup.row(btn3)
+        bot.send_message(message.chat.id, info, reply_markup=markup)
 
 
 
@@ -563,6 +726,59 @@ def callback_message(callback):
 
     if callback.data == 'look_at_shaker':
         bot.send_photo(callback.message.chat.id, open('shacker.jpg', 'rb'), caption='<em>$Цена</em>\n\nЧтобы купить шейкер напишите @psy_sensei', parse_mode='html')
+
+    if callback.data == 'add_new_admin':
+        global _telegram_nick
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute('UPDATE users SET is_superuser = "true" WHERE telegram_nickname = "%s"' % (_telegram_nick))
+        conn.commit()
+        cur.close()
+        conn.close()
+        bot.send_message(callback.message.chat.id, 'Админ создан')
+
+    if callback.data == 'renew_abonement':
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute("""SELECT price
+                    FROM price
+                    WHERE abonement_type in (SELECT abonement_type FROM users WHERE telegram_nickname = '%s')
+                    and type_of_sport in (SELECT type_of_sport FROM users WHERE telegram_nickname = '%s')
+                    and abonement_count_workout in (SELECT abonement_count_workout FROM users WHERE telegram_nickname = '%s')"""%(callback.from_user.username, callback.from_user.username, callback.from_user.username))
+        price = cur.fetchall()
+        info = ''
+        for el in price:
+           info += f'{el[0]}'
+        cur.close()
+        conn.close()
+        bot.send_message(callback.message.chat.id, f'Для оплаты необходимо перевести {info} рублей на сбербанк по номеру 89990009900\nЧтобы оплата прошла, необходимо отправиь чек СРАЗУ после этого сообщения, иначе он не обработается', parse_mode='html')
+        bot.register_next_step_handler(callback.message, cool_signup_check)
+
+    if callback.data == 'freeze_abonement':
+        bot.send_message(callback.message.chat.id, 'Тынц')
+
+    if callback.data == 'check_in':
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute('UPDATE users SET current_count_workout = current_count_workout + 1 WHERE telegram_nickname = "%s"' % (callback.from_user.username))
+        conn.commit()
+        cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (callback.from_user.username))
+        users = cur.fetchall()
+        info = ''
+        abonement_count_workout = ''
+        current_count_workout = ''
+        for el in users:
+            info += f'ФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}'
+            abonement_count_workout += f'{el[8]}'
+            current_count_workout += f'{el[9]}'
+        cur.close()
+        conn.close()
+        if (current_count_workout == abonement_count_workout):
+            bot.send_message(-4143866178, f'Сегодня будет ПОСЛЕДНЯЯ тренировка у\n\n{info}')
+            bot.send_message(callback.message.chat.id, 'Это последняя оплаченная тренировка')
+        else:
+            bot.send_message(-4143866178, f'Сегодня будет тренировка у\n\n{info}')
+            bot.send_message(callback.message.chat.id, 'Вы отметились')
 
 bot.infinity_polling()
 
