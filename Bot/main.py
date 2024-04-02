@@ -2,6 +2,7 @@ import telebot
 from telebot import types
 import sqlite3
 from datetime import timedelta, date, datetime
+import calendar
 import pandas as pd
 
 
@@ -52,18 +53,11 @@ def start(message):
     conn.commit()
     cur.close()
     conn.close()
-    markup = types.ReplyKeyboardMarkup()
-    btn1 = types.KeyboardButton('/Взрослый')
-    btn2 = types.KeyboardButton('/Ребёнок')
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Взрослый', callback_data = 'start_adult')
+    btn2 = types.InlineKeyboardButton('Ребёнок', callback_data = 'start_kid')
     markup.row(btn1, btn2)
     bot.send_message(message.chat.id, 'Здравствуйте!\nКто будет ходить?\n\n<em>Чтобы начать заполнение заново, нажмите /start до окончания регистрации</em>',  parse_mode='html', reply_markup=markup)
-
-
-
-@bot.message_handler(commands=['Взрослый'])
-def adult(message):
-    bot.send_message(message.chat.id, 'Введите ваше ФИО')
-    bot.register_next_step_handler(message, phone_number)
         
 def phone_number(message):
         global _adalt_name
@@ -85,13 +79,6 @@ def register(message):
             cur.close()
             conn.close()
             bot.send_message(message.chat.id, 'Регистрация прошла успешно\n\nДоступные команды:\n/myinfo - Информация о моих тренировках\n/price - Узнать цены\n/schedule - Узнать расписание\n/signup - Записаться на занятие\n/additionalservices - Дополнительные услуги\n/socialnetwork - Добавить свою соц сеть\n/contacts - Контакты')
-
-
-
-@bot.message_handler(commands=['Ребёнок'])
-def kid(message):
-    bot.send_message(message.chat.id, 'Введите ФИО ребёнка')
-    bot.register_next_step_handler(message, adult_with_kid)
 
 def adult_with_kid(message):
     global _kid_name
@@ -636,7 +623,7 @@ def delete_user_check(message):
     btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
     markup.row(btn1)
     markup.row(btn2)
-    bot.send_message(message.chat.id, f'Надо удалить {info}?\n\n<em>Если нет, то /delete_user</em>', parse_mode='html', reply_markup=markup)
+    bot.send_message(message.chat.id, f'Надо удалить {info}?', parse_mode='html', reply_markup=markup)
 
 
 
@@ -647,7 +634,7 @@ def add_admin_user(message):
 
 def add_new_admin(message):
     global _telegram_nick
-    _telegram_nick =  message.text
+    _telegram_nick = message.text
     conn = sqlite3.connect('tigris_clube.sql')
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (_telegram_nick))
@@ -662,8 +649,80 @@ def add_new_admin(message):
     btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
     markup.row(btn1)
     markup.row(btn2)
-    bot.send_message(message.chat.id, f'Надо сделать админом {info}\n\n<em>Если нет, то /add_admin_user</em>', parse_mode='html', reply_markup=markup)
+    bot.send_message(message.chat.id, f'Надо сделать админом {info}', reply_markup=markup)
 
+
+
+@bot.message_handler(commands=['locker_days_left'])
+def locker_days_left(message):
+    bot.send_message(message.chat.id, 'Введите ник пользователя без @')
+    bot.register_next_step_handler(message, change_locker_days_left)
+
+def change_locker_days_left(message):
+    _telegram_nick =  message.text
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (_telegram_nick))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[1]}\n'
+    cur.close()
+    conn.close()
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'change_locker_days_left')
+    btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
+    markup.row(btn1)
+    markup.row(btn2)
+    bot.send_message(message.chat.id, f'Надо поменять дату шкафчика у {info}?', reply_markup=markup)
+
+def update_locker_days_left(message):
+    _new_day = message.text
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('UPDATE users SET locker_days_left = "%s" WHERE telegram_nickname = "%s"' % (_new_day, _telegram_nick))
+    conn.commit()
+    cur.close()
+    conn.close()
+    bot.send_message(message.chat.id, 'Дата установлена')
+
+
+
+@bot.message_handler(commands=['change_day_start_abonement'])
+def change_day_start_abonement(message):
+    bot.send_message(message.chat.id, 'Введите ник пользователя без @')
+    bot.register_next_step_handler(message, add_new_day_start_abonement)
+
+def add_new_day_start_abonement(message):
+    _telegram_nick =  message.text
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (_telegram_nick))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[1]}\n'
+    cur.close()
+    conn.close()
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'change_day_start_abonement')
+    btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
+    markup.row(btn1)
+    markup.row(btn2)
+    bot.send_message(message.chat.id, f'Надо поменять дату начала абонемента у {info}?', reply_markup=markup)
+
+def update_day_start_abonement(message):
+    _new_day =  message.text
+    _date_start = datetime.strptime(_new_day, '%Y-%m-%d')
+    _days = calendar.monthrange(_date_start.year, _date_start.month)[1]
+    _date_end = _date_start + timedelta(days=_days)
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('UPDATE users SET day_start_abonement = "%s", day_end_abonement = "%s" WHERE telegram_nickname = "%s"' % (_date_start, _date_end, message.from_user.username))
+    conn.commit()
+    cur.close()
+    conn.close()
+    bot.send_message(message.chat.id, 'Дата изменена')
 
 
 @bot.message_handler(commands=['myinfo'])
@@ -686,7 +745,7 @@ def my_info(message):
         users = cur.fetchall()
         info = ''
         for el in users:
-            info += f'Вид абонемента: {el[6]}\nДата оформления абонемента (ГГГГ-ММ-ДД): {el[10]}\nДата окончиния абонемента (ГГГГ-ММ-ДД): {el[11]}\nИспользовано {el[9]} тренировок из {el[8]}\nШкафчик действует до {el[13]}'
+            info += f'Вид абонемента: {el[6]}\nДата оформления абонемента (ГГГГ-ММ-ДД): {el[10]}\nДата окончиния абонемента (ГГГГ-ММ-ДД): {el[11]}\nИспользовано {el[9]} тренировок из {el[8]}\nАренда шкафчиа до (ГГГГ-ММ-ДД): {el[13]}'
         cur.close()
         conn.close()
         markup = types.InlineKeyboardMarkup()
@@ -719,8 +778,22 @@ def freeze_check(message):
 
 
 
+@bot.message_handler(commands=['all_notification'])
+def add_admin_user(message):
+    bot.send_message(message.chat.id, 'Функция пока не работает')
+
+
+
 @bot.callback_query_handler(func=lambda callback: True)
 def callback_message(callback):
+    if callback.data == 'start_adult':
+        bot.send_message(callback.message.chat.id, 'Введите ваше ФИО')
+        bot.register_next_step_handler(callback.message, phone_number)
+
+    if callback.data == 'start_kid':
+        bot.send_message(callback.message.chat.id, 'Введите ФИО ребёнка')
+        bot.register_next_step_handler(callback.message, adult_with_kid)
+
     if callback.data == 'find_out_adult_schedule':
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
@@ -918,5 +991,14 @@ def callback_message(callback):
         cur.close()
         conn.close()
         bot.send_message(callback.message.chat.id, 'Пользователь удалён')
+
+    if callback.data == 'change_locker_days_left':
+        bot.send_message(callback.message.chat.id, 'Напишите дату окончиния аренды шкафчика в формате ГГГГ-ММ-ДД')
+        bot.register_next_step_handler(callback.message, update_locker_days_left)
+
+    if callback.data == 'change_day_start_abonement':
+        bot.send_message(callback.message.chat.id, 'Напишите дату начала использования абонемента в формате ГГГГ-ММ-ДД')
+        bot.register_next_step_handler(callback.message, update_day_start_abonement)
+
 
 bot.infinity_polling()
