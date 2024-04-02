@@ -745,8 +745,7 @@ def my_info(message):
         users = cur.fetchall()
         info = ''
         for el in users:
-            info += f'Вид абонемента: {el[6]}\nДата оформления абонемента (ГГГГ-ММ-ДД): {el[10]}\nДата окончиния абонемента (ГГГГ-ММ-ДД): {el[11]}\nИспользовано {el[9]} тренировок из {el[8]}\nАренда шкафчиа до (ГГГГ-ММ-ДД): {el[13]}'
-        cur.close()
+            info += f'Вид абонемента: {el[6]}\nДата оформления абонемента: {el[10]}\nДата окончиния абонемента: {el[11]}\nИспользовано {el[9]} тренировок из {el[8]}\nАренда шкафчика до: {el[13]}\n\nдаты отображаются в фотмате ГГГГ-ММ-ДД'
         conn.close()
         markup = types.InlineKeyboardMarkup()
         btn1 = types.InlineKeyboardButton('Продлить абонемент', callback_data = 'renew_abonement')
