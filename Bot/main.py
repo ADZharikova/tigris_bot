@@ -3,11 +3,12 @@ from telebot import types
 import sqlite3
 from datetime import timedelta, datetime
 import calendar
-import pandas as pd
+# import pandas as pd
 from gog import Gog
 from notif import Notif
 import threading
 import os
+import xlsxwriter
 
 
 bot = telebot.TeleBot('7069056617:AAHnd4Y6PE2TpKuJLdxg2GdHuo1IeICrS20')
@@ -125,19 +126,40 @@ def users_list(message):
     cur.close()
     conn.close()
     if (info == "true"):
+        workbook = xlsxwriter.Workbook('users.xlsx')
+        worksheet = workbook.add_worksheet()
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
         cur.execute('SELECT * FROM users')
         users = cur.fetchall()
-        info = 'ФИО взрослого;ФИО ребёнка;Ознакомлен с договором;Админские права;Номер телефона;Ник телеграм;Тип абонемента;Вид Спорта;Количество дней в абонементе;Количество тренировок, которые отходил;Дата начала абонемента;Дата окончания абонемента;Есть ли шкафчик;Дата окончания аренды шкафчика;Количество заморозок;vk_ru;inst_ru;ID чата;Активен ли\n'
+        worksheet.write(0, 0, 'ФИО взрослого')
+        worksheet.write(0, 1, 'ФИО ребёнка')
+        worksheet.write(0, 2, 'Ознакомлен с договором')
+        worksheet.write(0, 3, 'Админ')
+        worksheet.write(0, 4, 'Номер телефона')
+        worksheet.write(0, 5, 'Ник телеграм')
+        worksheet.write(0, 6, 'Тип абонемента')
+        worksheet.write(0, 7, 'Вид спорта')
+        worksheet.write(0, 8, 'Количество дней в абонементе')
+        worksheet.write(0, 9, 'Количество тренировок, которые отходил')
+        worksheet.write(0, 10, 'Дата начала абонемента')
+        worksheet.write(0, 11, 'Дата окончания абонемента')
+        worksheet.write(0, 12, 'Есть ли шкафчик')
+        worksheet.write(0, 13, 'Дата окончания аренды шкафчика')
+        worksheet.write(0, 14, 'Количество заморозок')
+        worksheet.write(0, 15, 'vk_ru')
+        worksheet.write(0, 16, 'inst_ru')
+        worksheet.write(0, 17, 'ID чата')
+        worksheet.write(0, 18, 'Активен ли')
+        row = 1
         for el in users:
-            info += f'{el[1]};{el[2]};{el[3]};{el[4]};{el[5]};{el[6]};{el[7]};{el[8]};{el[9]};{el[10]};{el[11]};{el[12]};{el[13]};{el[14]};{el[15]};{el[16]};{el[17]};{el[18]};{el[19]}\n'
+            for i in range(0, 19):
+                worksheet.write(row, i, str(el[i+1]))
+            row += row
         cur.close()
         conn.close()
-        user = pd.DataFrame({info})
-        user.to_csv('users.csv', index=False, encoding='utf-8')
-        bot.send_document(message.chat.id, open('users.csv', 'rb'))
-        bot.send_message(message.chat.id, f'Если в файле криво, то надо поменять кодировку в exel на UTF-8')
+        workbook.close()
+        bot.send_document(message.chat.id, open('users.xlsx', 'rb'))
     else:
         bot.send_message(message.chat.id, 'Вы не админ')
 
