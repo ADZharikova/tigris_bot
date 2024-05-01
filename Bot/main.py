@@ -7,6 +7,7 @@ import pandas as pd
 from gog import Gog
 from notif import Notif
 import threading
+import os
 
 
 bot = telebot.TeleBot('7069056617:AAHnd4Y6PE2TpKuJLdxg2GdHuo1IeICrS20')
@@ -22,7 +23,8 @@ def start(message):
     cur.execute("""CREATE TABLE IF NOT EXISTS users
                 (id int auto_increment primary key, 
                 fio_adult varchar(100), 
-                fio_kid varchar(100), 
+                fio_kid varchar(100),
+                is_agree bool,
                 is_superuser bool,
                 phone_number integer,
                 telegram_nickname varchar(50),
@@ -37,7 +39,8 @@ def start(message):
                 frozen_number integer,
                 vk_ru varchar(50),
                 inst_ru varchar(50),
-                chat_id varchar(50))""")
+                chat_id varchar(50),
+                is_active bool)""")
     
     cur.execute("""CREATE TABLE IF NOT EXISTS schedule
                 (id int auto_increment primary key, 
@@ -66,10 +69,10 @@ def start(message):
     cur.close()
     conn.close()
     markup = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton('Взрослый', callback_data = 'start_adult')
-    btn2 = types.InlineKeyboardButton('Ребёнок', callback_data = 'start_kid')
-    markup.row(btn1, btn2)
-    bot.send_message(message.chat.id, 'Здравствуйте!\nДля кого хотели бы приобрести абонемент\n\n<em>Чтобы начать заполнение заново, нажмите 2 раза /start до окончания регистрации</em>',  parse_mode='html', reply_markup=markup)
+    btn1 = types.InlineKeyboardButton('Ознакомлен', callback_data = 'agree')
+    markup.row(btn1)
+    bot.send_message(message.chat.id, 'Здравствуйте!\nДля начала регистрации просьба ознакомиться с договором', parse_mode='html')
+    bot.send_document(message.chat.id, open('ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ.txt', 'rb'), reply_markup=markup)
         
 def phone_number(message):
         global _adult_name
@@ -93,7 +96,7 @@ def register(message):
             conn = sqlite3.connect('tigris_clube.sql')
             cur = conn.cursor()
             cur.execute('DELETE FROM users WHERE telegram_nickname = "%s"' % (message.from_user.username))
-            cur.execute("INSERT INTO users (fio_adult, fio_kid, is_superuser, phone_number, telegram_nickname, current_count_workout, chat_id) VALUES ('%s', '%s', '%s', '%s', '%s', 0, '%s')" % (_adult_name, _kid_name, "false", _phone_number, message.from_user.username, message.chat.id))
+            cur.execute("INSERT INTO users (fio_adult, fio_kid, is_agree, is_superuser, phone_number, telegram_nickname, current_count_workout, chat_id, is_active) VALUES ('%s', '%s', 'true', 'false', '%s', '%s', 0, '%s', 'true')" % (_adult_name, _kid_name, _phone_number, message.from_user.username, message.chat.id))
             conn.commit()
             cur.close()
             conn.close()
@@ -126,15 +129,15 @@ def users_list(message):
         cur = conn.cursor()
         cur.execute('SELECT * FROM users')
         users = cur.fetchall()
-        info = 'ФИО взрослого;ФИО ребёнка;Админские права;Номер телефона;Ник телеграм;Тип абонемента;Вид Спорта;Количество дней в абонементе;Количество тренировок, которые отходил;Дата начала абонемента;Дата окончания абонемента;Есть ли шкафчик;Дата окончания аренды шкафчика;Количество заморозок;vk_ru;inst_ru;ID чата\n'
+        info = 'ФИО взрослого;ФИО ребёнка;Ознакомлен с договором;Админские права;Номер телефона;Ник телеграм;Тип абонемента;Вид Спорта;Количество дней в абонементе;Количество тренировок, которые отходил;Дата начала абонемента;Дата окончания абонемента;Есть ли шкафчик;Дата окончания аренды шкафчика;Количество заморозок;vk_ru;inst_ru;ID чата;Активен ли\n'
         for el in users:
-            info += f'{el[1]};{el[2]};{el[3]};{el[4]};{el[5]};{el[6]};{el[7]};{el[8]};{el[9]};{el[10]};{el[11]};{el[12]};{el[13]};{el[14]};{el[15]};{el[16]};{el[17]}\n'
+            info += f'{el[1]};{el[2]};{el[3]};{el[4]};{el[5]};{el[6]};{el[7]};{el[8]};{el[9]};{el[10]};{el[11]};{el[12]};{el[13]};{el[14]};{el[15]};{el[16]};{el[17]};{el[18]};{el[19]}\n'
         cur.close()
         conn.close()
         user = pd.DataFrame({info})
         user.to_csv('users.csv', index=False, encoding='utf-8')
         bot.send_document(message.chat.id, open('users.csv', 'rb'))
-        bot.send_message(message.chat.id, f'Если в файле криво, то надо поменять кодировку в exel на UTF-8\n\n{info}')
+        bot.send_message(message.chat.id, f'Если в файле криво, то надо поменять кодировку в exel на UTF-8')
     else:
         bot.send_message(message.chat.id, 'Вы не админ')
 
@@ -598,7 +601,7 @@ def signup_abonement_count_workout(message):
             info += f'{el[0]}'
         cur.close()
         conn.close()
-        bot.send_message(message.chat.id, f'Для оплаты необходимо перевести {info} рублей на сбербанк по номеру 89990009900\nЧтобы оплата прошла, необходимо отправиь чек СРАЗУ после этого сообщения, иначе он не обработается\n\n<em>Если сумма не отобразилась, начните сначала /signup</em>', parse_mode='html')
+        bot.send_message(message.chat.id, f'Для оплаты необходимо перевести <b>{info}</b> рублей\nна Cбербанк\nпо номеру <b>8(985)913-45-16</b>\nна имя Дмитрия Юрьевича М.\n\nЧтобы оплата прошла, необходимо прикрепить чек сюда СРАЗУ после этого сообщения и дождиться сообщения об успешности обработки.\n⚠️ <em>Если сообщение об успешности не пришло через 2 минуты, повторите команду /signup</em>', parse_mode='html')
         bot.register_next_step_handler(message, signup_check)
 
 def signup_check(message):
@@ -618,10 +621,10 @@ def signup_check(message):
         for el in users:
             _fio_adult = f'{el[1]}'
             _fio_kid = f'{el[2]}'
-            _abonement = f'{el[6]}'
-            _sport = f'{el[7]}'
-            count_workout = f'{el[8]}'
-            info += f'ЧЕК\n\nДата оплаты: {el[10]}\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
+            _abonement = f'{el[7]}'
+            _sport = f'{el[8]}'
+            count_workout = f'{el[9]}'
+            info += f'ЧЕК\n\nДата оплаты: {el[11]}\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[5]}\nТелега: @{el[6]}\nТип абонемента: {el[7]}\nГруппа: {el[8]}\nКоличество занятий: {el[9]}\n'
         cur.close()
         conn.close()
         bot.send_message(-4143866178, info)
@@ -649,10 +652,10 @@ def cool_signup_check(message):
         for el in users:
             _fio_adult = f'{el[1]}'
             _fio_kid = f'{el[2]}'
-            _abonement = f'{el[6]}'
-            _sport = f'{el[7]}'
-            count_workout = f'{el[8]}'
-            info += f'ЧЕК\n\nДата оплаты: {el[10]}\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\n'
+            _abonement = f'{el[7]}'
+            _sport = f'{el[8]}'
+            count_workout = f'{el[9]}'
+            info += f'ЧЕК\n\nДата оплаты: {el[11]}\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[5]}\nТелега: @{el[6]}\nТип абонемента: {el[7]}\nГруппа: {el[8]}\nКоличество занятий: {el[9]}\n'
         cur.close()
         conn.close()
         bot.send_message(-4143866178, info)
@@ -747,13 +750,21 @@ def change_date_end_rent_locker(message):
         cur = conn.cursor()
         cur.execute("UPDATE users SET locker_days_left = DATE(CURRENT_DATE, '+1 month') WHERE chat_id = '%s'" % (message.chat.id))
         conn.commit()
+        cur.execute("SELECT price FROM additionalservices WHERE type = 'Аренда шкафчика'")
+        additionalservices = cur.fetchall()
+        _price_rent = ''
+        for el in additionalservices:
+            _price_rent += f'{el[0]}'
         cur.execute("SELECT * FROM users WHERE chat_id = '%s'"% (message.chat.id))
         users = cur.fetchall()
         info = ''
         for el in users:
-            info += f'Купил аренду шкафчика\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\nДата покупки: {datetime.now().date()}'
+            fio_adult = {el[1]}
+            fio_kid = {el[2]}
+            info += f'АРЕНДА ШКАФЧИКА\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[5]}\nТелега: @{el[6]}\nТип абонемента: {el[7]}\nГруппа: {el[8]}\nКоличество занятий: {el[9]}\nДата покупки: {datetime.now().date()}'
         cur.close()
         conn.close()
+        _gog.add_payment(str(fio_adult)[2:-2], str(fio_kid)[2:-2], str(datetime.now().date()), "Аренда шкафчика", "-", "-", str(_price_rent))
         bot.send_message(-4143866178, info)
         bot.forward_message(-4143866178, message.from_user.id, message.message_id)
         bot.send_message(message.chat.id, 'Оплата прошла')
@@ -997,10 +1008,46 @@ def admin_help(message):
     cur.close()
     conn.close()
     if (info == "true"):
-        bot.send_message(message.chat.id, "Команды, доступные админам:\n\nРАБОТА С ПОЛЬЗОВАТЕЛЯМИ:\n/users_list - Вывести список пользователей\n/delete_user - Удалить неактивного пользователя\n/chat_id - Узнать id текущего чата (доступно всем)\n\nРАБОТА С РАСПИСАНИЕМ:\n/add_schedule_first_time - Самый первый раз добавить расписание (сделать один раз при запуске)\n/change_schedule - Поменять расписание\n\nРАБОТА С ЦЕНАМИ:\n/add_price_first_time - Самый первый раз добавить цены (сделать один раз при запуске)\n/add_new_price - Добавить новый вид абонемента\n/change_price - Поменять цену существующего абонемента\n/delete_abonement - Удалить вид абонемента\n\nИЗМЕНЕНИЕ ДАТ:\n/change_day_start_abonement - поменять дату начала абонемента определённого пользователя\n/change_day_end_abonement - поменять дату окончания абонемента определённого пользователя\n/locker_days_left - поменять дату окончания аренды шкафчика определённого пользователя\n\nДОП УСЛУГИ:\n/add_additional_service - добавить новую доп услугу\n/change_price_additional_service - изменить цену существующей доп услуги\n/delete_additional_service - изменить существующую услугу\n\nДОП ВОЗМОЖНОСТИ:\n/change_contacts - Поменять информацию в графе 'Контакты клуба'\n/all_notification - отправить всем уведомление")
+        bot.send_message(message.chat.id, "Команды, доступные админам:\n\nРАБОТА С ПОЛЬЗОВАТЕЛЯМИ:\n/users_list - Вывести список пользователей\ninactive_user - Сделать пользователя неактивным, чтобы он перестал получать уведомления\n/delete_user - Удалить пользователя\n/chat_id - Узнать id текущего чата (доступно всем)\n\nРАБОТА С РАСПИСАНИЕМ:\n/add_schedule_first_time - Самый первый раз добавить расписание (сделать один раз при запуске)\n/change_schedule - Поменять расписание\n\nРАБОТА С ЦЕНАМИ:\n/add_price_first_time - Самый первый раз добавить цены (сделать один раз при запуске)\n/add_new_price - Добавить новый вид абонемента\n/change_price - Поменять цену существующего абонемента\n/delete_abonement - Удалить вид абонемента\n\nИЗМЕНЕНИЕ ДАТ:\n/change_day_start_abonement - поменять дату начала абонемента определённого пользователя\n/change_day_end_abonement - поменять дату окончания абонемента определённого пользователя\n/locker_days_left - поменять дату окончания аренды шкафчика определённого пользователя\n\nДОП УСЛУГИ:\n/add_additional_service - добавить новую доп услугу\n/change_price_additional_service - изменить цену существующей доп услуги\n/delete_additional_service - удалить существующую услугу\n\nДОП ВОЗМОЖНОСТИ:\n/change_contacts - Поменять информацию в графе 'Контакты клуба'\n/all_notification - отправить всем уведомление\n/type_notification - отправить уведомление по типу абонемента")
     else:
         bot.send_message(message.chat.id, "Вы не админ")
 
+
+
+@bot.message_handler(commands=['inactive_user'])
+def delete_user(message):
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT is_superuser FROM users WHERE chat_id = "%s"' % (message.chat.id))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[0]}'
+    cur.close()
+    conn.close()
+    if (info == "true"):
+        bot.send_message(message.chat.id, 'Введите ник пользователя, которого хотите удалить')
+        bot.register_next_step_handler(message, inactive_user_check)
+    else:
+        bot.send_message(message.chat.id, "Вы не админ")
+
+def inactive_user_check(message):
+    global _telegram_nick
+    _telegram_nick =  message.text
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE telegram_nickname = '%s'"% (_telegram_nick))
+    users = cur.fetchall()
+    info = ''
+    for el in users:
+        info += f'{el[1]}'
+    cur.close()
+    conn.close()
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'inactive_user')
+    btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
+    markup.add(btn1, btn2)
+    bot.send_message(message.chat.id, f'Надо сделать неактивным {info}?', parse_mode='html', reply_markup=markup)
 
 
 @bot.message_handler(commands=['delete_user'])
@@ -1195,7 +1242,7 @@ def my_info(message):
         users = cur.fetchall()
         info = ''
         for el in users:
-            info += f'Вид абонемента: {el[6]}\nДата оформления абонемента: {el[10]}\nДата окончиния абонемента: {el[11]}\nИспользовано {el[9]} тренировок из {el[8]}\nАренда шкафчика до: {el[13]}\n\nДаты отображаются в фотмате ГГГГ-ММ-ДД'
+            info += f'<b>Вид абонемента:</b> {el[7]}\n<b>Дата оформления абонемента:</b> {el[11]}\n<b>Дата окончиния абонемента:</b> {el[12]}\n<b>Использовано</b> {el[13]} тренировок из {el[9]}\n<b>Аренда шкафчика до</b>: {el[14]}\n\n<em>Даты отображаются в фотмате ГГГГ-ММ-ДД</em>'
         conn.close()
         markup = types.InlineKeyboardMarkup()
         btn1 = types.InlineKeyboardButton('Продлить абонемент', callback_data = 'renew_abonement')
@@ -1205,7 +1252,7 @@ def my_info(message):
         markup.row(btn1)
         markup.row(btn2, btn4)
         markup.row(btn3)
-        bot.send_message(message.chat.id, info, reply_markup=markup)
+        bot.send_message(message.chat.id, info, parse_mode='html', reply_markup=markup)
 
 def freeze_check(message):
     if (message.content_type == 'photo'):
@@ -1217,7 +1264,7 @@ def freeze_check(message):
         users = cur.fetchall()
         info = ''
         for el in users:
-            info += f'ВТОРАЯ ЗАМОРОЗКА\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\nДата продления: {datetime.now().date()}'
+            info += f'ВТОРАЯ ЗАМОРОЗКА\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[5]}\nТелега: @{el[6]}\nТип абонемента: {el[7]}\nГруппа: {el[8]}\nКоличество занятий: {el[9]}\nДата продления: {datetime.now().date()}'
         cur.close()
         conn.close()
         bot.send_message(message.chat.id, 'Абонемент продлён на 3 дня')
@@ -1229,19 +1276,77 @@ def freeze_check(message):
 
 
 @bot.message_handler(commands=['all_notification'])
-def notification(message):
-    bot.send_message(message.chat.id, 'Напишите текст, который хотите отправить всем')
-    bot.register_next_step_handler(message, notification_text)
+def all_notification(message):
+    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    btn = types.KeyboardButton('!Всем!')
+    markup.add(btn)
+    conn = sqlite3.connect('tigris_clube.sql')
+    cur = conn.cursor()
+    cur.execute("SELECT abonement_type FROM price GROUP BY abonement_type")
+    price = cur.fetchall()
+    info = list()
+    for abonement_type in price:
+        info.append(abonement_type)
+    cur.close()
+    conn.close()
+    for el in info:
+        btn = types.KeyboardButton(str(el)[2:-3])
+        markup.add(btn)
+    bot.send_message(message.chat.id, 'Выберете, кому хотите отправить уведомления', reply_markup=markup)
+    bot.register_next_step_handler(message, all_notification)
 
-def notification_text(message):
+def all_notification(message):
+    global _type_of_abonement_notification
+    _type_of_abonement_notification = message.text
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Текст', callback_data = 'all_text')
+    btn2 = types.InlineKeyboardButton('Фото', callback_data = 'all_photo')
+    btn3 = types.InlineKeyboardButton('Текст и фото', callback_data = 'all_text_and_photo')
+    markup.row(btn1, btn2, btn3)
+    bot.send_message(message.chat.id, 'Выберете вид уведомления', reply_markup=markup)
+
+def all_notification_text(message):
     global _notification
     markup = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'notification')
+    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'all_notification_text')
     btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
     markup.row(btn1, btn2)
     _notification = message.text
     bot.send_message(message.chat.id, f'Нужно отправить:\n{_notification}', parse_mode='html', reply_markup=markup)
 
+def all_notification_photo(message):
+    global _notification_photo
+    file_info = bot.get_file(message.document.file_id)
+    _photo = bot.download_file(file_info.file_path)
+    _notification_photo = message.document.file_name
+    with open(_notification_photo, 'wb') as new_file:
+        new_file.write(_photo)
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'all_notification_photo')
+    btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
+    markup.row(btn1, btn2)
+    bot.send_photo(message.chat.id, open(_notification_photo, 'rb'), caption=f'Нужно отправить только это фото?', parse_mode='html', reply_markup=markup)
+
+def all_notification_text_and_photo(message):
+    global _notification
+    _notification = message.text
+    bot.send_message(message.chat.id, 'Приложите фото документом, которое хотите отправить всем')
+    bot.register_next_step_handler(message, all_notification_photo_and_text)
+
+def all_notification_photo_and_text(message):
+    global _notification_photo
+    global _notification
+    file_info = bot.get_file(message.document.file_id)
+    _photo = bot.download_file(file_info.file_path)
+    _notification_photo = message.document.file_name
+    with open(_notification_photo, 'wb') as new_file:
+        new_file.write(_photo)
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton('Да!', callback_data = 'all_notification_text_and_photo')
+    btn2 = types.InlineKeyboardButton('Нет', callback_data = 'not_find_nick')
+    markup.row(btn1, btn2)
+    bot.send_message(message.chat.id, 'Отправить так?')
+    bot.send_photo(message.chat.id, open(_notification_photo, 'rb'), caption=f'{_notification}', parse_mode='html', reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda callback: True)
@@ -1376,7 +1481,7 @@ def callback_message(callback):
            info += f'{el[0]}'
         cur.close()
         conn.close()
-        bot.send_message(callback.message.chat.id, f'Для оплаты необходимо перевести {info} рублей на сбербанк по номеру 89990009900\nЧтобы оплата прошла, необходимо отправиь чек СРАЗУ после этого сообщения, иначе он не обработается', parse_mode='html')
+        bot.send_message(callback.message.chat.id, f'Для оплаты необходимо перевести <b>{info}</b> рублей\nна Cбербанк\nпо номеру <b>8(985)913-45-16</b>\nна имя Дмитрия Юрьевича М.\n\nЧтобы оплата прошла, необходимо прикрепить чек сюда СРАЗУ после этого сообщения и дождиться сообщения об успешности обработки.\n\n⚠️ <em>Если сообщение об успешности не пришло через 2 минуты, повторите команду /signup</em>', parse_mode='html')
         bot.register_next_step_handler(callback.message, cool_signup_check)
 
     if callback.data == 'freeze_abonement':
@@ -1413,7 +1518,7 @@ def callback_message(callback):
                 users = cur.fetchall()
                 info = ''
                 for el in users:
-                    info += f'ЗАМОРОЗКА\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}\nТип абонемента: {el[6]}\nГруппа: {el[7]}\nКоличество занятий: {el[8]}\nДата продления: {datetime.now().date()}'
+                    info += f'ЗАМОРОЗКА\n\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[5]}\nТелега: @{el[6]}\nТип абонемента: {el[7]}\nГруппа: {el[8]}\nКоличество занятий: {el[9]}\nДата продления: {datetime.now().date()}'
                 cur.close()
                 conn.close()
                 bot.send_message(callback.message.chat.id, 'Абонемент продлён на 3 дня')
@@ -1436,7 +1541,7 @@ def callback_message(callback):
         abonement_count_workout = ''
         current_count_workout = ''
         for el in users:
-            info += f'Тип абонемента: {el[6]}\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[4]}\nТелега: @{el[5]}'
+            info += f'Тип абонемента: {el[7]}\nФИО взрослого: {el[1]}\nФИО ребёнка: {el[2]}\nНомер: {el[5]}\nТелега: @{el[6]}'
             abonement_count_workout += f'{el[8]}'
             current_count_workout += f'{el[9]}'
         cur.close()
@@ -1459,6 +1564,16 @@ def callback_message(callback):
         cur.close()
         conn.close()
         bot.send_message(callback.message.chat.id, 'Пользователь удалён')
+
+
+    if callback.data == 'inactive_user':
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute('UPDATE users SET is_active = "false" WHERE telegram_nickname = "%s"' % (_telegram_nick))
+        conn.commit()
+        cur.close()
+        conn.close()
+        bot.send_message(callback.message.chat.id, 'Пользователь не будет получать нотификации')
 
     if callback.data == 'change_locker_days_left':
         bot.send_message(callback.message.chat.id, 'Напишите дату окончиния аренды шкафчика в формате ГГГГ-ММ-ДД')
@@ -1484,6 +1599,12 @@ def callback_message(callback):
     if callback.data == 'delete_add':
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
+        cur.execute("SELECT photo FROM additionalservices WHERE type = '%s'"% (_type_addit))
+        additionalservices = cur.fetchall()
+        info = ''
+        for el in additionalservices:
+            info += f'{el[0]}'
+        os.remove(f"{info}")
         cur.execute('DELETE FROM additionalservices WHERE type = "%s"'% (_type_addit))
         conn.commit()
         cur.close()
@@ -1519,17 +1640,92 @@ def callback_message(callback):
         bot.send_message(callback.message.chat.id, f'Переведите мне на карточку сто тыщ мильёнов. Шутка, всего {info} и пришлите чек', parse_mode='html')
         bot.register_next_step_handler(callback.message, change_date_end_rent_locker)
 
-    if callback.data == 'notification':
+    if callback.data == 'all_notification_text':
         global _notification
-        conn = sqlite3.connect('tigris_clube.sql')
-        cur = conn.cursor()
-        cur.execute("SELECT chat_id FROM users")
-        users = cur.fetchall()
-        info = ''
-        for el in users:
-            bot.send_message(el[0], _notification, parse_mode='html')
-        cur.close()
-        conn.close()
+        if (_type_of_abonement_notification == "!Всем!"):
+            conn = sqlite3.connect('tigris_clube.sql')
+            cur = conn.cursor()
+            cur.execute("SELECT chat_id FROM users where is_active = 'true'")
+            users = cur.fetchall()
+            info = ''
+            for el in users:
+                bot.send_message(el[0], _notification, parse_mode='html')
+            cur.close()
+            conn.close()
+        else:
+            conn = sqlite3.connect('tigris_clube.sql')
+            cur = conn.cursor()
+            cur.execute("SELECT chat_id FROM users where is_active = 'true' and abonement_type = '%s'"%(_type_of_abonement_notification))
+            users = cur.fetchall()
+            info = ''
+            for el in users:
+                bot.send_message(el[0], _notification, parse_mode='html')
+            cur.close()
+            conn.close()
+        bot.send_message(callback.message.chat.id, 'Готово')
+
+    if callback.data == 'all_notification_photo':
+        if (_type_of_abonement_notification == "!Всем!"):
+            conn = sqlite3.connect('tigris_clube.sql')
+            cur = conn.cursor()
+            cur.execute("SELECT chat_id FROM users where is_active = 'true'")
+            users = cur.fetchall()
+            for el in users:
+                bot.send_photo(el[0], open(_notification_photo, 'rb'))
+            cur.close()
+            conn.close()
+        else:
+            conn = sqlite3.connect('tigris_clube.sql')
+            cur = conn.cursor()
+            cur.execute("SELECT chat_id FROM users where is_active = 'true' and abonement_type = '%s'"%(_type_of_abonement_notification))
+            users = cur.fetchall()
+            for el in users:
+                bot.send_photo(el[0], open(_notification_photo, 'rb'))
+            cur.close()
+            conn.close()
+        os.remove(f"{_notification_photo}")
+        bot.send_message(callback.message.chat.id, 'Готово')
+
+    if callback.data == 'all_notification_text_and_photo':
+        if (_type_of_abonement_notification == "!Всем!"):
+            conn = sqlite3.connect('tigris_clube.sql')
+            cur = conn.cursor()
+            cur.execute("SELECT chat_id FROM users where is_active = 'true'")
+            users = cur.fetchall()
+            for el in users:
+                bot.send_photo(el[0], open(_notification_photo, 'rb'), caption=f'{_notification}')
+            cur.close()
+            conn.close()
+        else:
+            conn = sqlite3.connect('tigris_clube.sql')
+            cur = conn.cursor()
+            cur.execute("SELECT chat_id FROM users where is_active = 'true' and abonement_type = '%s'"%(_type_of_abonement_notification))
+            users = cur.fetchall()
+            for el in users:
+                bot.send_photo(el[0], open(_notification_photo, 'rb'), caption=f'{_notification}')
+            cur.close()
+            conn.close()            
+        os.remove(f"{_notification_photo}")
+        bot.send_message(callback.message.chat.id, 'Готово')
+
+    if callback.data == 'agree':
+        markup = types.InlineKeyboardMarkup()
+        btn1 = types.InlineKeyboardButton('Взрослый', callback_data = 'start_adult')
+        btn2 = types.InlineKeyboardButton('Ребёнок', callback_data = 'start_kid')
+        markup.row(btn1, btn2)
+        bot.send_message(callback.message.chat.id, 'Для кого хотели бы приобрести абонемент\n\n<em>Чтобы начать заполнение заново, нажмите 2 раза /start до окончания регистрации</em>',  parse_mode='html', reply_markup=markup)
+
+    if callback.data == 'all_text':
+        bot.send_message(callback.message.chat.id, 'Напишите текст, который хотите отправить всем')
+        bot.register_next_step_handler(callback.message, all_notification_text)
+
+    if callback.data == 'all_photo':
+        bot.send_message(callback.message.chat.id, 'Приложите фото документом, которое хотите отправить всем')
+        bot.register_next_step_handler(callback.message, all_notification_photo)
+
+    if callback.data == 'all_text_and_photo':
+        bot.send_message(callback.message.chat.id, 'Напишите текст, который хотите прикрепить к фото')
+        bot.register_next_step_handler(callback.message, all_notification_text_and_photo)
 
 
 

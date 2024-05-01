@@ -11,7 +11,7 @@ class Notif:
         time.sleep(2332800)
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
-        cur.execute('SELECT day_start_abonement FROM users WHERE chat_id = "%s"' % (_chat))
+        cur.execute('SELECT day_start_abonement FROM users WHERE chat_id = "%s" and is_active = "true"' % (_chat))
         users = cur.fetchall()
         day_start_abonement = ''
         for el in users:
@@ -29,7 +29,7 @@ class Notif:
         time.sleep(259200)
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
-        cur.execute('SELECT day_start_abonement FROM users WHERE chat_id = "%s"' % (_chat))
+        cur.execute('SELECT day_start_abonement FROM users WHERE chat_id = "%s" and is_active = "true"' % (_chat))
         users = cur.fetchall()
         day_start_abonement = ''
         for el in users:
