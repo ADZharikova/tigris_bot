@@ -562,36 +562,37 @@ def signup(message):
     for el in info:
         btn = types.KeyboardButton(str(el)[2:-3])
         markup.add(btn)
-    bot.send_message(message.chat.id, 'Укажите тип абонемента', reply_markup=markup)
+    bot.send_message(message.chat.id, 'Укажите тип абонемента\n\n<em>Для отмены записи нажмите /cancel</em>', parse_mode='html', reply_markup=markup)
     bot.register_next_step_handler(message, signup_abonement_type)
 
 def signup_abonement_type(message):
     global _abonement_type
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=True)
     _abonement_type = message.text.strip()
-    if (_abonement_type == '/signup'):
-        bot.register_next_step_handler(message, signup)
-    conn = sqlite3.connect('tigris_clube.sql')
-    cur = conn.cursor()
-    cur.execute("SELECT type_of_sport FROM price WHERE abonement_type = '%s' GROUP BY type_of_sport"% (_abonement_type))
-    price = cur.fetchall()
-    info = list()
-    for type_of_sport in price:
-            info.append(type_of_sport)
-    cur.close()
-    conn.close()
-    for el in info:
-        btn = types.KeyboardButton(str(el)[2:-3])
-        markup.add(btn)
-    bot.send_message(message.chat.id, 'Укажите вид спорта', reply_markup=markup)
-    bot.register_next_step_handler(message, signup_type_of_sport)
+    if (_abonement_type == "/cancel"):
+        bot.send_message(message.chat.id, '<em>Доступные команды можно посмотреть в меню слева от клавиатуры.</em>', parse_mode='html')
+    else:
+        conn = sqlite3.connect('tigris_clube.sql')
+        cur = conn.cursor()
+        cur.execute("SELECT type_of_sport FROM price WHERE abonement_type = '%s' GROUP BY type_of_sport"% (_abonement_type))
+        price = cur.fetchall()
+        info = list()
+        for type_of_sport in price:
+                info.append(type_of_sport)
+        cur.close()
+        conn.close()
+        for el in info:
+            btn = types.KeyboardButton(str(el)[2:-3])
+            markup.add(btn)
+        bot.send_message(message.chat.id, 'Укажите вид спорта\n\n<em>Для отмены записи нажмите /cancel</em>', parse_mode='html', reply_markup=markup)
+        bot.register_next_step_handler(message, signup_type_of_sport)
 
 def signup_type_of_sport(message):
     global _type_of_sport
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=True)
     _type_of_sport = message.text.strip()
-    if (_type_of_sport== '/signup'):
-        bot.register_next_step_handler(message, signup)
+    if (_type_of_sport == "/cancel"):
+        bot.send_message(message.chat.id, '<em>Доступные команды можно посмотреть в меню слева от клавиатуры.</em>', parse_mode='html')
     else:
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
@@ -605,14 +606,14 @@ def signup_type_of_sport(message):
         for el in info:
             btn = types.KeyboardButton(str(el)[2:-3])
             markup.add(btn)
-        bot.send_message(message.chat.id, 'Укажите количество занятий', reply_markup=markup)
+        bot.send_message(message.chat.id, 'Укажите количество занятий\n\n<em>Для отмены записи нажмите /cancel</em>', parse_mode='html', reply_markup=markup)
         bot.register_next_step_handler(message, signup_abonement_count_workout)
 
 def signup_abonement_count_workout(message):
     global _abonement_count_workout
     _abonement_count_workout = message.text.strip()
-    if (_abonement_count_workout== '/signup'):
-        bot.register_next_step_handler(message, signup)
+    if (_abonement_count_workout == "/cancel"):
+        bot.send_message(message.chat.id, '<em>Доступные команды можно посмотреть в меню слева от клавиатуры.</em>', parse_mode='html')
     else:
         conn = sqlite3.connect('tigris_clube.sql')
         cur = conn.cursor()
@@ -1037,7 +1038,7 @@ def admin_help(message):
 
 
 @bot.message_handler(commands=['inactive_user'])
-def delete_user(message):
+def inactive_user(message):
     conn = sqlite3.connect('tigris_clube.sql')
     cur = conn.cursor()
     cur.execute('SELECT is_superuser FROM users WHERE chat_id = "%s"' % (message.chat.id))
@@ -1048,7 +1049,7 @@ def delete_user(message):
     cur.close()
     conn.close()
     if (info == "true"):
-        bot.send_message(message.chat.id, 'Введите ник пользователя, которого хотите удалить')
+        bot.send_message(message.chat.id, 'Введите ник пользователя, которого хотите сделать неактивным')
         bot.register_next_step_handler(message, inactive_user_check)
     else:
         bot.send_message(message.chat.id, "Вы не админ")
@@ -1576,7 +1577,7 @@ def callback_message(callback):
             bot.send_message(callback.message.chat.id, 'Вы отметились')
 
     if callback.data == 'not_find_nick':
-        bot.send_message(callback.message.chat.id, 'Начните сначала')
+        bot.send_message(callback.message.chat.id, 'Операция отменена')
 
     if callback.data == 'delete_user':
         conn = sqlite3.connect('tigris_clube.sql')
