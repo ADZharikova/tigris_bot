@@ -1,0 +1,23 @@
+2024-06-19 14:08:00,635 (__init__.py:1212 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 400. Description: Bad Request: can't parse entities: Unexpected end of name token at byte offset 120"
+2024-06-19 14:08:00,636 (__init__.py:1214 MainThread) ERROR - TeleBot: "Exception traceback:
+Traceback (most recent call last):
+  File "/home/fyfcnfcb12/.local/lib/python3.10/site-packages/telebot/__init__.py", line 1206, in __threaded_polling
+    self.worker_pool.raise_exceptions()
+  File "/home/fyfcnfcb12/.local/lib/python3.10/site-packages/telebot/util.py", line 150, in raise_exceptions
+    raise self.exception_info
+  File "/home/fyfcnfcb12/.local/lib/python3.10/site-packages/telebot/util.py", line 93, in run
+    task(*args, **kwargs)
+  File "/home/fyfcnfcb12/.local/lib/python3.10/site-packages/telebot/__init__.py", line 8404, in _run_middlewares_and_handler
+    result = handler['function'](message)
+  File "/home/fyfcnfcb12/bot/main.py", line 74, in start
+    bot.send_message(message.chat.id, 'Здравствуйте!\nДля начала регистрации просьба ознакомиться с <a href=https://tigrisfight.ru/dogovor-publichnoi-oferty/>договором публичной оферты.</a>\nНажимая "Ознакомлен" вы подтверждаете, что соглашаетесь с ним', parse_mode='html', reply_markup = markup)
+  File "/home/fyfcnfcb12/.local/lib/python3.10/site-packages/telebot/__init__.py", line 1742, in send_message
+    apihelper.send_message(
+  File "/home/fyfcnfcb12/.local/lib/python3.10/site-packages/telebot/apihelper.py", line 270, in send_message
+    return _make_request(token, method_url, params=payload, method='post')
+  File "/home/fyfcnfcb12/.local/lib/python3.10/site-packages/telebot/apihelper.py", line 167, in _make_request
+    json_result = _check_result(method_name, result)
+  File "/home/fyfcnfcb12/.local/lib/python3.10/site-packages/telebot/apihelper.py", line 194, in _check_result
+    raise ApiTelegramException(method_name, result, result_json)
+telebot.apihelper.ApiTelegramException: A request to the Telegram API was unsuccessful. Error code: 400. Description: Bad Request: can't parse entities: Unexpected end of name token at byte offset 120
+"
